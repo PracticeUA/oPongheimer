@@ -5,8 +5,8 @@ namespace Pongheimer.Core.Sessions;
 /// <summary>Партія вдвох за однією клавіатурою: лівий гравець — W/S, правий — стрілки.</summary>
 public sealed class LocalDuelSession : AuthoritativeSession
 {
-    public LocalDuelSession(Random? random = null)
-        : base(new PongSimulation(random))
+    public LocalDuelSession(Random? random = null, GameMode mode = GameMode.Classic)
+        : base(new PongSimulation(random, mode))
     {
     }
 

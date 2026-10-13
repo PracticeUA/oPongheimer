@@ -25,4 +25,8 @@ public static class GameRules
     public const int WinScore = 7;
 
     public static double ClampPaddle(double y) => Math.Clamp(y, 0, MaxPaddleY);
+
+    /// <summary>Те саме для ракетки нестандартної висоти (ядерний режим).</summary>
+    public static double ClampPaddle(double y, double paddleHeight) =>
+        Math.Clamp(y, 0, Math.Max(FieldHeight - paddleHeight, 0));
 }

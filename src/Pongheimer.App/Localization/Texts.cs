@@ -1,3 +1,4 @@
+using Pongheimer.Core.Game;
 using Pongheimer.Core.Networking;
 
 namespace Pongheimer.Localization;
@@ -8,6 +9,10 @@ namespace Pongheimer.Localization;
 /// </summary>
 public abstract class Texts
 {
+    public abstract string ModeClassic { get; }
+
+    public abstract string ModeNuclear { get; }
+
     public abstract string HostGame { get; }
 
     public abstract string PlayBot { get; }
@@ -62,4 +67,7 @@ public abstract class Texts
     public abstract string Describe(ConnectionError error, int port);
 
     public abstract string Describe(ConnectionFault fault);
+
+    /// <summary>Коротка назва вмісту бомби — для напису над вибухом і списку активних ефектів.</summary>
+    public abstract string BonusName(BonusKind kind);
 }

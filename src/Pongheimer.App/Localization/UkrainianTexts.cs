@@ -1,9 +1,14 @@
+using Pongheimer.Core.Game;
 using Pongheimer.Core.Networking;
 
 namespace Pongheimer.Localization;
 
 public sealed class UkrainianTexts : Texts
 {
+    public override string ModeClassic => "Класичний";
+
+    public override string ModeNuclear => "Ядерний";
+
     public override string HostGame => "Створити гру (хост)";
 
     public override string PlayBot => "Грати проти бота";
@@ -66,6 +71,24 @@ public sealed class UkrainianTexts : Texts
         ConnectionError.NotPongheimer => "За цією адресою відповідає не oPongheimer.",
         ConnectionError.VersionMismatch => "У тебе й у хоста різні версії гри. Візьміть однаковий exe.",
         _ => UnexpectedError,
+    };
+
+    public override string BonusName(BonusKind kind) => kind switch
+    {
+        BonusKind.BigBall => "Великий м'яч",
+        BonusKind.SmallBall => "Малий м'яч",
+        BonusKind.FastBall => "Швидкий м'яч",
+        BonusKind.NormalSpeedBall => "Звичайна швидкість",
+        BonusKind.Shockwave => "Ударна хвиля",
+        BonusKind.LongPaddle => "Довга ракетка",
+        BonusKind.ShortPaddle => "Коротка ракетка",
+        BonusKind.FastPaddle => "Швидка ракетка",
+        BonusKind.SlowPaddle => "Повільна ракетка",
+        BonusKind.Shield => "Щит",
+        BonusKind.DoublePoint => "Подвійне очко",
+        BonusKind.Freeze => "Заморозка",
+        BonusKind.Inversion => "Інверсія",
+        _ => "",
     };
 
     public override string Describe(ConnectionFault fault) => fault switch

@@ -1,9 +1,14 @@
+using Pongheimer.Core.Game;
 using Pongheimer.Core.Networking;
 
 namespace Pongheimer.Localization;
 
 public sealed class EnglishTexts : Texts
 {
+    public override string ModeClassic => "Classic";
+
+    public override string ModeNuclear => "Nuclear";
+
     public override string HostGame => "Create game (host)";
 
     public override string PlayBot => "Play against bot";
@@ -66,6 +71,24 @@ public sealed class EnglishTexts : Texts
         ConnectionError.NotPongheimer => "Whatever answers at this address is not oPongheimer.",
         ConnectionError.VersionMismatch => "You and the host have different game versions. Use the same exe.",
         _ => UnexpectedError,
+    };
+
+    public override string BonusName(BonusKind kind) => kind switch
+    {
+        BonusKind.BigBall => "Big ball",
+        BonusKind.SmallBall => "Small ball",
+        BonusKind.FastBall => "Fast ball",
+        BonusKind.NormalSpeedBall => "Normal speed",
+        BonusKind.Shockwave => "Shockwave",
+        BonusKind.LongPaddle => "Long paddle",
+        BonusKind.ShortPaddle => "Short paddle",
+        BonusKind.FastPaddle => "Fast paddle",
+        BonusKind.SlowPaddle => "Slow paddle",
+        BonusKind.Shield => "Shield",
+        BonusKind.DoublePoint => "Double point",
+        BonusKind.Freeze => "Freeze",
+        BonusKind.Inversion => "Inversion",
+        _ => "",
     };
 
     public override string Describe(ConnectionFault fault) => fault switch

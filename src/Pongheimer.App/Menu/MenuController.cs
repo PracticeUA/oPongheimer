@@ -41,6 +41,11 @@ public sealed class MenuController
         {
             settings.Current.BotDifficulty = BotDifficulty.Medium;
         }
+
+        if (!Enum.IsDefined(settings.Current.GameMode))
+        {
+            settings.Current.GameMode = GameMode.Classic;
+        }
     }
 
     /// <summary>Партія готова до старту.</summary>
@@ -88,6 +93,25 @@ public sealed class MenuController
         }
     }
 
+    /// <summary>
+    /// Режим для ігор, які починаються з цієї машини: проти бота, вдвох і як хост.
+    /// Клієнт, підключаючись, грає в режимі хоста.
+    /// </summary>
+    public GameMode GameMode
+    {
+        get => _settings.Current.GameMode;
+        set
+        {
+            if (_settings.Current.GameMode == value)
+            {
+                return;
+            }
+
+            _settings.Current.GameMode = value;
+            _settings.Save();
+        }
+    }
+
     public bool IsSoundEnabled
     {
         get => _sounds.IsEnabled;
@@ -107,15 +131,18 @@ public sealed class MenuController
         }
     }
 
-    public void PlayBot() => StartLocal(_sessions.CreateSolo(BotDifficulty));
+    public void PlayBot() => StartLocal(_sessions.CreateSolo(BotDifficulty, GameMode));
 
-    public void PlayLocalDuel() => StartLocal(_sessions.CreateLocalDuel());
+    public void PlayLocalDuel() => StartLocal(_sessions.CreateLocalDuel(GameMode));
 
     public void Host()
     {
         var addresses = _sessions.LocalAddresses;
         var port = _sessions.Port;
-        _ = ConnectAsync(texts => texts.WaitingForOpponent(addresses, port), _sessions.HostAsync);
+        var mode = GameMode;
+        _ = ConnectAsync(
+            texts => texts.WaitingForOpponent(addresses, port),
+            cancellationToken => _sessions.HostAsync(mode, cancellationToken));
     }
 
     public void Join()

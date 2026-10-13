@@ -9,8 +9,8 @@ public sealed class HostSession : AuthoritativeSession
     private readonly IPeerConnection _connection;
     private byte _seenPauseToggles;
 
-    public HostSession(IPeerConnection connection, Random? random = null)
-        : base(new PongSimulation(random))
+    public HostSession(IPeerConnection connection, Random? random = null, GameMode mode = GameMode.Classic)
+        : base(new PongSimulation(random, mode))
     {
         _connection = connection;
     }
@@ -23,7 +23,8 @@ public sealed class HostSession : AuthoritativeSession
 
     protected override void UpdateRightPaddle(double dt, PlayerInput input)
     {
-        if (_connection.LatestInput is { } remote)
+        // Заморожену ракетку клієнт не рухає й сам, але хост на це не покладається.
+        if (_connection.LatestInput is { } remote && !Simulation.ModifiersOf(Side.Right).IsFrozen)
         {
             Simulation.SetPaddle(Side.Right, remote.PaddleY);
         }

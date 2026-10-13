@@ -2,10 +2,12 @@ namespace Pongheimer.Core.Game;
 
 /// <summary>
 /// Правила та фізика Pong. Не знає ні про UI, ні про мережу, ні про те, хто керує ракетками.
+/// Ця частина — спільна для обох режимів; бомби й ефекти ядерного режиму — у сусідньому файлі.
 /// </summary>
-public sealed class PongSimulation
+public sealed partial class PongSimulation
 {
     private readonly Random _random;
+    private readonly GameMode _mode;
 
     private double _leftY = GameRules.CenteredPaddleY;
     private double _rightY = GameRules.CenteredPaddleY;
@@ -14,6 +16,7 @@ public sealed class PongSimulation
     private double _ballVx;
     private double _ballVy;
     private double _ballSpeed;
+    private double _ballSize = GameRules.BallSize;
     private double _serveTimer;
     private int _serveDirection = 1;
     private int _scoreLeft;
@@ -21,17 +24,34 @@ public sealed class PongSimulation
     private GamePhase _phase;
     private bool _isPaused;
 
-    public PongSimulation(Random? random = null)
+    // Хто останнім торкнувся м'яча — йому дістається вміст підірваної бомби.
+    private Side _lastHitter = Side.Left;
+
+    public PongSimulation(Random? random = null, GameMode mode = GameMode.Classic)
     {
         _random = random ?? Random.Shared;
+        _mode = mode;
         BeginServe();
     }
 
-    public GameState State => new(_ballX, _ballY, _leftY, _rightY, _scoreLeft, _scoreRight, _phase, _isPaused);
+    public GameState State => new(
+        _ballX,
+        _ballY,
+        _leftY,
+        _rightY,
+        _scoreLeft,
+        _scoreRight,
+        _phase,
+        _isPaused,
+        _ballSize,
+        PaddleHeight(Side.Left),
+        PaddleHeight(Side.Right),
+        NuclearState);
 
-    public double BallVelocityX => _ballVx;
+    /// <summary>Справжня швидкість м'яча, з урахуванням ефектів.</summary>
+    public double BallVelocityX => _ballVx * BallSpeedFactor;
 
-    public double BallVelocityY => _ballVy;
+    public double BallVelocityY => _ballVy * BallSpeedFactor;
 
     public void SetPaddle(Side side, double y)
     {
@@ -42,18 +62,26 @@ public sealed class PongSimulation
 
         if (side == Side.Left)
         {
-            _leftY = GameRules.ClampPaddle(y);
+            _leftY = GameRules.ClampPaddle(y, PaddleHeight(Side.Left));
         }
         else
         {
-            _rightY = GameRules.ClampPaddle(y);
+            _rightY = GameRules.ClampPaddle(y, PaddleHeight(Side.Right));
         }
     }
 
+    /// <summary>Рух ракетки від клавіш гравця; тут діють ефекти швидкості, заморозки та інверсії.</summary>
     public void MovePaddle(Side side, int direction, double dt)
     {
+        var modifiers = ModifiersOf(side);
+        if (modifiers.IsFrozen)
+        {
+            return;
+        }
+
+        var step = Math.Sign(direction) * GameRules.PaddleSpeed * modifiers.SpeedFactor * dt;
         var current = side == Side.Left ? _leftY : _rightY;
-        SetPaddle(side, current + Math.Sign(direction) * GameRules.PaddleSpeed * dt);
+        SetPaddle(side, current + (modifiers.IsInverted ? -step : step));
     }
 
     public void Restart()
@@ -61,6 +89,7 @@ public sealed class PongSimulation
         _scoreLeft = 0;
         _scoreRight = 0;
         _isPaused = false;
+        ResetNuclear();
         BeginServe();
     }
 
@@ -80,6 +109,8 @@ public sealed class PongSimulation
             return;
         }
 
+        UpdateNuclear(dt);
+
         switch (_phase)
         {
             case GamePhase.Serve:
@@ -98,6 +129,7 @@ public sealed class PongSimulation
 
             case GamePhase.Playing:
                 MoveBall(dt);
+                DetonateBombsHitByBall();
                 break;
         }
     }
@@ -111,12 +143,15 @@ public sealed class PongSimulation
         _ballVy = vy;
         _ballSpeed = Math.Sqrt(vx * vx + vy * vy);
         _phase = GamePhase.Playing;
+
+        // М'яч летить від того, хто його «подав».
+        _lastHitter = vx >= 0 ? Side.Left : Side.Right;
     }
 
     private void BeginServe()
     {
-        _ballX = GameState.Initial.BallX;
-        _ballY = GameState.Initial.BallY;
+        _ballX = (GameRules.FieldWidth - _ballSize) / 2;
+        _ballY = (GameRules.FieldHeight - _ballSize) / 2;
         _ballVx = 0;
         _ballVy = 0;
         _serveTimer = GameRules.ServeDelay;
@@ -126,10 +161,11 @@ public sealed class PongSimulation
     private void MoveBall(double dt)
     {
         var previousX = _ballX;
-        _ballX += _ballVx * dt;
-        _ballY += _ballVy * dt;
+        var speedFactor = BallSpeedFactor;
+        _ballX += _ballVx * speedFactor * dt;
+        _ballY += _ballVy * speedFactor * dt;
 
-        const double maxBallY = GameRules.FieldHeight - GameRules.BallSize;
+        var maxBallY = GameRules.FieldHeight - _ballSize;
         if (_ballY < 0)
         {
             _ballY = Math.Min(-_ballY, maxBallY);
@@ -143,49 +179,69 @@ public sealed class PongSimulation
 
         // Перевіряємо перетин площини ракетки між кроками, щоб швидкий м'яч не пролітав крізь неї.
         const double leftFace = GameRules.LeftPaddleX + GameRules.PaddleWidth;
-        const double rightFace = GameRules.RightPaddleX - GameRules.BallSize;
-        if (_ballVx < 0 && previousX >= leftFace && _ballX <= leftFace && OverlapsPaddle(_leftY))
+        var rightFace = GameRules.RightPaddleX - _ballSize;
+        if (_ballVx < 0 && previousX >= leftFace && _ballX <= leftFace && OverlapsPaddle(Side.Left))
         {
             _ballX = leftFace;
-            Bounce(_leftY, direction: 1);
+            Bounce(Side.Left, direction: 1);
         }
-        else if (_ballVx > 0 && previousX <= rightFace && _ballX >= rightFace && OverlapsPaddle(_rightY))
+        else if (_ballVx > 0 && previousX <= rightFace && _ballX >= rightFace && OverlapsPaddle(Side.Right))
         {
             _ballX = rightFace;
-            Bounce(_rightY, direction: -1);
+            Bounce(Side.Right, direction: -1);
         }
 
-        if (_ballX + GameRules.BallSize < 0)
+        if (TryBounceOffShield())
         {
-            _scoreRight++;
-            EndRally(serveDirection: -1);
+            return;
+        }
+
+        if (_ballX + _ballSize < 0)
+        {
+            Score(Side.Right);
         }
         else if (_ballX > GameRules.FieldWidth)
         {
-            _scoreLeft++;
-            EndRally(serveDirection: 1);
+            Score(Side.Left);
         }
     }
 
-    private bool OverlapsPaddle(double paddleY) =>
-        _ballY + GameRules.BallSize >= paddleY && _ballY <= paddleY + GameRules.PaddleHeight;
+    private bool OverlapsPaddle(Side side)
+    {
+        var paddleY = side == Side.Left ? _leftY : _rightY;
+        return _ballY + _ballSize >= paddleY && _ballY <= paddleY + PaddleHeight(side);
+    }
 
-    private void Bounce(double paddleY, int direction)
+    private void Bounce(Side side, int direction)
     {
         // Чим далі від центру ракетки влучив м'яч, тим крутіший кут відбиття.
-        var ballCenter = _ballY + GameRules.BallSize / 2;
-        var paddleCenter = paddleY + GameRules.PaddleHeight / 2;
-        var offset = Math.Clamp((ballCenter - paddleCenter) / (GameRules.PaddleHeight / 2), -1, 1);
+        var paddleY = side == Side.Left ? _leftY : _rightY;
+        var halfHeight = PaddleHeight(side) / 2;
+        var ballCenter = _ballY + _ballSize / 2;
+        var offset = Math.Clamp((ballCenter - (paddleY + halfHeight)) / halfHeight, -1, 1);
         var angle = offset * GameRules.MaxBounceAngle;
         _ballSpeed = Math.Min(_ballSpeed * GameRules.SpeedUpPerHit, GameRules.MaxBallSpeed);
         _ballVx = direction * _ballSpeed * Math.Cos(angle);
         _ballVy = _ballSpeed * Math.Sin(angle);
+        _lastHitter = side;
     }
 
-    private void EndRally(int serveDirection)
+    private void Score(Side scorer)
     {
-        // Подача летить у бік того, хто щойно пропустив.
-        _serveDirection = serveDirection;
+        var points = ConsumeDoublePoint(scorer) ? 2 : 1;
+        if (scorer == Side.Left)
+        {
+            _scoreLeft = Math.Min(_scoreLeft + points, GameRules.WinScore);
+        }
+        else
+        {
+            _scoreRight = Math.Min(_scoreRight + points, GameRules.WinScore);
+        }
+
+        // Подача летить у бік того, хто щойно пропустив; «подавальник» — той, хто забив.
+        _serveDirection = scorer == Side.Left ? 1 : -1;
+        _lastHitter = scorer;
+        ClearEffects();
         BeginServe();
         if (_scoreLeft >= GameRules.WinScore || _scoreRight >= GameRules.WinScore)
         {

@@ -14,10 +14,14 @@ public static class ExplosionRenderer
     // Центр шапки, навколо якого вона «дихає».
     private static readonly Vector2 CapCenter = new(400, 150);
 
-    public static void Draw(Canvas canvas, double seconds)
+    /// <param name="canvas">Полотно; простір координат має бути вже заданий.</param>
+    /// <param name="seconds">Час від початку вибуху.</param>
+    /// <param name="withFlash">Чи малювати спалах на все поле (для маленьких вибухів бомб він зайвий).</param>
+    /// <param name="opacity">Загальна прозорість — щоб маленький вибух міг розтанути.</param>
+    public static void Draw(Canvas canvas, double seconds, bool withFlash = true, float opacity = 1)
     {
         var t = (float)seconds;
-        DrawShockwave(canvas, t);
+        DrawShockwave(canvas, t, opacity);
 
         // Гриб росте від землі: спершу розходиться вшир, трохи повільніше — вгору.
         const float growthDelay = 0.1f;
@@ -26,18 +30,18 @@ public static class ExplosionRenderer
             var scale = new Vector2(
                 MathHelper.Lerp(0.15f, 1f, CubicEaseOut((t - growthDelay) / 1.1f)),
                 CubicEaseOut((t - growthDelay) / 1.4f));
-            DrawCloud(canvas, scale, CapBreathing(t));
+            DrawCloud(canvas, scale, CapBreathing(t), opacity);
         }
 
         // Спалах на все поле.
         var flash = 1 - QuadraticEaseOut(t / 0.7f);
-        if (flash > 0)
+        if (withFlash && flash > 0)
         {
             canvas.FillRect(0, 0, 800, 450, Palette.Bright.WithOpacity(flash));
         }
     }
 
-    private static void DrawShockwave(Canvas canvas, float t)
+    private static void DrawShockwave(Canvas canvas, float t, float opacity)
     {
         var progress = (t - 0.1f) / 1.2f;
         if (progress is <= 0 or >= 1)
@@ -52,10 +56,10 @@ public static class ExplosionRenderer
             60 * 8 * progress,
             18 * 5 * progress,
             3 + 9 * progress,
-            Palette.ExplosionCore.WithOpacity(0.9f * (1 - progress)));
+            Palette.ExplosionCore.WithOpacity(0.9f * (1 - progress) * opacity));
     }
 
-    private static void DrawCloud(Canvas canvas, Vector2 scale, Vector2 capScale)
+    private static void DrawCloud(Canvas canvas, Vector2 scale, Vector2 capScale, float opacity)
     {
         // Еліпс, заданий як у розмітці (лівий верхній кут і розмір), з урахуванням росту гриба.
         void Ellipse(float left, float top, float width, float height, Color color, bool isCap = false)
@@ -70,7 +74,7 @@ public static class ExplosionRenderer
 
             center = Ground + (center - Ground) * scale;
             radii *= scale;
-            canvas.FillEllipse(center.X, center.Y, radii.X, radii.Y, color);
+            canvas.FillEllipse(center.X, center.Y, radii.X, radii.Y, color.WithOpacity(opacity));
         }
 
         // Хмара пилу біля землі.
@@ -80,9 +84,9 @@ public static class ExplosionRenderer
         Ellipse(300, 418, 200, 52, Palette.ExplosionMiddle);
 
         // Ніжка: три вкладені шари, кожен — смуга між двома кривими.
-        DrawStem(canvas, scale, 352, 380, 374, 366, Palette.ExplosionOuter);
-        DrawStem(canvas, scale, 372, 390, 386, 382, Palette.ExplosionMiddle);
-        DrawStem(canvas, scale, 390, 396, 395, 394, Palette.ExplosionInner);
+        DrawStem(canvas, scale, 352, 380, 374, 366, Palette.ExplosionOuter.WithOpacity(opacity));
+        DrawStem(canvas, scale, 372, 390, 386, 382, Palette.ExplosionMiddle.WithOpacity(opacity));
+        DrawStem(canvas, scale, 390, 396, 395, 394, Palette.ExplosionInner.WithOpacity(opacity));
 
         // Кільце на ніжці.
         Ellipse(330, 296, 140, 30, Palette.ExplosionOuter);

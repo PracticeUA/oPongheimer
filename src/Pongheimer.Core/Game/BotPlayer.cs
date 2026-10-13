@@ -25,7 +25,11 @@ public sealed record BotProfile(double Speed, double AimError, double ReactionX)
     };
 }
 
-/// <summary>Керує правою ракеткою відповідно до свого <see cref="BotProfile"/>.</summary>
+/// <summary>
+/// Керує правою ракеткою відповідно до свого <see cref="BotProfile"/>. Грає лише в м'яч: бомби
+/// ядерного режиму не ловить і не обминає, а їхні ефекти (швидкість, заморозка, інверсія)
+/// діють на нього так само, як на гравця.
+/// </summary>
 public sealed class BotPlayer
 {
     private readonly BotProfile _profile;
@@ -51,12 +55,21 @@ public sealed class BotPlayer
 
         _wasIncoming = incoming;
 
+        var modifiers = simulation.ModifiersOf(Side.Right);
+        if (modifiers.IsFrozen)
+        {
+            return;
+        }
+
         var chasing = incoming && state.BallX > _profile.ReactionX;
         var targetCenter = chasing
-            ? state.BallY + GameRules.BallSize / 2 + _aim
+            ? state.BallY + state.BallSize / 2 + _aim
             : GameRules.FieldHeight / 2;
-        var delta = targetCenter - (state.RightPaddleY + GameRules.PaddleHeight / 2);
-        var step = Math.Clamp(delta, -_profile.Speed * dt, _profile.Speed * dt);
-        simulation.SetPaddle(Side.Right, state.RightPaddleY + step);
+        var delta = targetCenter - (state.RightPaddleY + state.RightPaddleHeight / 2);
+        var maxStep = _profile.Speed * modifiers.SpeedFactor * dt;
+        var step = Math.Clamp(delta, -maxStep, maxStep);
+
+        // Під інверсією бот «плутає» вгору й вниз так само, як плутав би гравець.
+        simulation.SetPaddle(Side.Right, state.RightPaddleY + (modifiers.IsInverted ? -step : step));
     }
 }

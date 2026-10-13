@@ -10,6 +10,43 @@ using Pongheimer.Localization;
 
 namespace Pongheimer.Match;
 
+/// <summary>Удар м'яча об ракетку, який ще показується на полі.</summary>
+public sealed class Impact
+{
+    /// <summary>Скільки секунд видно іскри.</summary>
+    public const double Lifetime = 0.32;
+
+    public Impact(double x, double y, Side side)
+    {
+        X = x;
+        Y = y;
+        Side = side;
+    }
+
+    /// <summary>Центр м'яча в момент удару.</summary>
+    public double X { get; }
+
+    public double Y { get; }
+
+    /// <summary>Чия ракетка відбила.</summary>
+    public Side Side { get; }
+
+    public double Age { get; set; }
+}
+
+/// <summary>Вибух бомби, який ще показується на полі.</summary>
+public sealed class Blast
+{
+    /// <summary>Скільки секунд видно вибух і напис над ним.</summary>
+    public const double Lifetime = 1.4;
+
+    public Blast(Detonation detonation) => Detonation = detonation;
+
+    public Detonation Detonation { get; }
+
+    public double Age { get; set; }
+}
+
 /// <summary>
 /// Ігровий цикл партії: щокадру передає ввід у <see cref="IGameSession"/>, запам'ятовує стан для
 /// малювання, озвучує події й рахує плавність. Як саме малювати — справа <c>FieldRenderer</c>.
@@ -20,6 +57,8 @@ public sealed class MatchController
     private readonly ILog _log;
     private readonly GameEventDetector _events = new();
     private readonly FrameStats _stats = new();
+    private readonly List<Blast> _blasts = [];
+    private readonly List<Impact> _impacts = [];
 
     private IGameSession? _session;
 
@@ -43,6 +82,12 @@ public sealed class MatchController
     /// <summary>Скільки секунд триває фінал гри — за цим годинником іде анімація вибуху.</summary>
     public double GameOverSeconds { get; private set; }
 
+    /// <summary>Щойно підірвані бомби — для анімації маленьких вибухів і написів над ними.</summary>
+    public IReadOnlyList<Blast> Blasts => _blasts;
+
+    /// <summary>Щойні удари м'яча об ракетку — для іскор і спалаху ракетки.</summary>
+    public IReadOnlyList<Impact> Impacts => _impacts;
+
     public bool IsPerformanceVisible { get; set; }
 
     /// <summary>Щосекундний звіт про плавність.</summary>
@@ -53,6 +98,8 @@ public sealed class MatchController
         End(Texts.None);
         _session = session;
         _events.Reset();
+        _blasts.Clear();
+        _impacts.Clear();
         State = session.State;
         LocalSide = session.LocalSide;
         GameOverSeconds = 0;
@@ -69,6 +116,20 @@ public sealed class MatchController
     {
         // Годинник вибуху цокає й під меню: гриб продовжує «дихати» на тлі.
         GameOverSeconds = State.Phase == GamePhase.GameOver ? GameOverSeconds + dt : 0;
+
+        foreach (var blast in _blasts)
+        {
+            blast.Age += dt;
+        }
+
+        _blasts.RemoveAll(blast => blast.Age >= Blast.Lifetime);
+
+        foreach (var impact in _impacts)
+        {
+            impact.Age += dt;
+        }
+
+        _impacts.RemoveAll(impact => impact.Age >= Impact.Lifetime);
 
         if (_session is not { } session)
         {
@@ -162,8 +223,22 @@ public sealed class MatchController
         {
             _sounds.Play(scorer == (localSide ?? scorer) ? GameSound.PointWon : GameSound.PointLost);
         }
+        else if (events.Detonated is { } detonation)
+        {
+            _blasts.Add(new Blast(detonation));
+            _sounds.Play(NuclearRules.CategoryOf(detonation.Kind) switch
+            {
+                BonusCategory.Good => GameSound.BombGood,
+                BonusCategory.Bad => GameSound.BombBad,
+                _ => GameSound.BombBall,
+            });
+        }
         else if (events.PaddleHit)
         {
+            // Удар стався там, де м'яч зараз: він щойно відскочив від ракетки на своїй половині.
+            var radius = State.BallSize / 2;
+            var side = State.BallX + radius < GameRules.FieldWidth / 2 ? Side.Left : Side.Right;
+            _impacts.Add(new Impact(State.BallX + radius, State.BallY + radius, side));
             _sounds.Play(GameSound.PaddleHit);
         }
         else if (events.WallBounce)

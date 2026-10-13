@@ -11,6 +11,9 @@ public enum GameSound
     PointLost,
     Victory,
     Defeat,
+    BombGood,
+    BombBad,
+    BombBall,
 }
 
 public interface ISoundPlayer
@@ -41,6 +44,12 @@ public sealed class SynthSoundPlayer : ISoundPlayer, IDisposable
             Add(GameSound.WallBounce, new Note(240, 35));
             Add(GameSound.PointWon, new Note(660, 80), new Note(880, 120));
             Add(GameSound.PointLost, new Note(220, 100), new Note(165, 160));
+
+            // Бомба ядерного режиму: короткий вибух і нота, за якою на слух ясно, пощастило чи ні.
+            var blast = Note.Boom(170);
+            Add(GameSound.BombGood, blast, new Note(784, 70), new Note(1175, 110));
+            Add(GameSound.BombBad, blast, new Note(311, 90), new Note(208, 150));
+            Add(GameSound.BombBall, Note.Boom(240));
 
             // Фінал гри — ядерний вибух, а вже після гуркоту мелодія перемоги чи поразки.
             var boom = Note.Boom(1100);

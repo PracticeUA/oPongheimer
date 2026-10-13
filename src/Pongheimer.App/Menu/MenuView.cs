@@ -25,12 +25,14 @@ public sealed class MenuView
 
     // Висота всього, що вище статусу, і місце під статус із кнопкою «Скасувати» —
     // щоб меню не стрибало, коли статус з'являється чи зникає.
-    private const float FixedContentHeight = 355;
+    private const float FixedContentHeight = 401;
     private const float StatusAreaHeight = 120;
 
     private readonly MenuController _controller;
     private readonly Localizer _localizer;
 
+    private readonly Button _modeClassic = new();
+    private readonly Button _modeNuclear = new();
     private readonly Button _host = new();
     private readonly Button _bot = new();
     private readonly Button _botEasy = new();
@@ -44,6 +46,7 @@ public sealed class MenuView
     private readonly Button _english = new();
     private readonly TextField _address = new();
 
+    private Box _modeFrame;
     private Box _difficultyFrame;
     private Box _soundFrame;
     private Box _languageFrame;
@@ -65,6 +68,8 @@ public sealed class MenuView
         Arrange(layout);
 
         var idle = !_controller.IsBusy;
+        _modeClassic.IsEnabled = idle;
+        _modeNuclear.IsEnabled = idle;
         _host.IsEnabled = idle;
         _bot.IsEnabled = idle;
         _botEasy.IsEnabled = idle;
@@ -89,6 +94,16 @@ public sealed class MenuView
         if (_english.Update(input))
         {
             _controller.Language = Language.English;
+        }
+
+        if (_modeClassic.Update(input))
+        {
+            _controller.GameMode = GameMode.Classic;
+        }
+
+        if (_modeNuclear.Update(input))
+        {
+            _controller.GameMode = GameMode.Nuclear;
         }
 
         if (_botEasy.Update(input))
@@ -150,6 +165,10 @@ public sealed class MenuView
         _english.DrawSegment(canvas, "English", _controller.Language == Language.English);
 
         DrawTitle(canvas, layout);
+
+        Button.DrawGroupFrame(canvas, _modeFrame);
+        _modeClassic.DrawSegment(canvas, texts.ModeClassic, _controller.GameMode == GameMode.Classic);
+        _modeNuclear.DrawSegment(canvas, texts.ModeNuclear, _controller.GameMode == GameMode.Nuclear);
 
         _host.Draw(canvas, texts.HostGame, ButtonKind.LeftPlayer);
         _bot.Draw(canvas, texts.PlayBot, ButtonKind.Outline);
@@ -215,6 +234,13 @@ public sealed class MenuView
 
         _titleY = y;
         y += 53 + 28;
+
+        // Режим гри — для всього, що починається з цієї машини; клієнт грає в режимі хоста.
+        _modeFrame = new Box(_columnX, y, ColumnWidth, frameHeight);
+        var modeWidth = (ColumnWidth - GroupPadding * 2) / 2;
+        _modeClassic.Bounds = new Box(_columnX + GroupPadding, y + GroupPadding, modeWidth, SegmentHeight);
+        _modeNuclear.Bounds = new Box(_modeClassic.Bounds.Right, y + GroupPadding, modeWidth, SegmentHeight);
+        y += frameHeight + 10;
 
         _host.Bounds = new Box(_columnX, y, ColumnWidth, ButtonHeight);
         y += ButtonHeight + 10;

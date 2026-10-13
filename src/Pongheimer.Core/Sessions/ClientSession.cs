@@ -25,6 +25,7 @@ public sealed class ClientSession : IGameSession
 
     private readonly IPeerConnection _connection;
     private double _paddleY = GameRules.CenteredPaddleY;
+    private double _paddleHeight = GameRules.PaddleHeight;
     private byte _pauseToggles;
     private StateMessage? _lastSnapshot;
     private double _ballX = GameState.Initial.BallX;
@@ -47,10 +48,7 @@ public sealed class ClientSession : IGameSession
         var snapshot = _connection.LatestState;
         var hostState = snapshot?.State ?? State;
 
-        if (!hostState.IsPaused)
-        {
-            _paddleY = GameRules.ClampPaddle(_paddleY + input.Direction * GameRules.PaddleSpeed * frameTime);
-        }
+        MovePaddle(hostState, input.Direction, frameTime);
 
         if (snapshot is not null)
         {
@@ -77,6 +75,27 @@ public sealed class ClientSession : IGameSession
     private static bool IsBallMoving(StateMessage snapshot) =>
         snapshot.State.Phase == GamePhase.Playing && !snapshot.State.IsPaused;
 
+    /// <summary>
+    /// Власна ракетка рухається тут, а не на хості, тому ефекти ядерного режиму клієнт
+    /// застосовує сам — за тими самими правилами, що й симуляція хоста.
+    /// </summary>
+    private void MovePaddle(GameState hostState, int direction, double frameTime)
+    {
+        // Ракетка змінила висоту — лишаємо її центр на місці, як це робить хост.
+        var height = hostState.RightPaddleHeight;
+        _paddleY += (_paddleHeight - height) / 2;
+        _paddleHeight = height;
+
+        var modifiers = NuclearRules.ModifiersFor(hostState.Nuclear, Side.Right);
+        if (!hostState.IsPaused && !modifiers.IsFrozen)
+        {
+            var step = direction * GameRules.PaddleSpeed * modifiers.SpeedFactor * frameTime;
+            _paddleY += modifiers.IsInverted ? -step : step;
+        }
+
+        _paddleY = GameRules.ClampPaddle(_paddleY, height);
+    }
+
     private void MoveBall(StateMessage snapshot, double frameTime)
     {
         var previous = _lastSnapshot;
@@ -84,7 +103,9 @@ public sealed class ClientSession : IGameSession
         _lastSnapshot = snapshot;
 
         // М'яч стоїть (подача, пауза, кінець гри) або щойно рушив — показуємо рівно те, що каже хост.
-        if (!IsBallMoving(snapshot) || previous is null || !IsBallMoving(previous))
+        // Те саме, коли бомба змінила розмір м'яча: його кут зсунувся, і прогноз за старим розміром хибний.
+        if (!IsBallMoving(snapshot) || previous is null || !IsBallMoving(previous)
+            || snapshot.State.BallSize != previous.State.BallSize)
         {
             SnapBallTo(snapshot);
             return;
@@ -94,7 +115,7 @@ public sealed class ClientSession : IGameSession
         _ballY += _velocityY * frameTime;
 
         // Від стіни прогноз відбивається сам, не чекаючи хоста: правило просте й однозначне.
-        const double maxBallY = GameRules.FieldHeight - GameRules.BallSize;
+        var maxBallY = GameRules.FieldHeight - snapshot.State.BallSize;
         if (_ballY < 0 || _ballY > maxBallY)
         {
             _ballY = Math.Clamp(_ballY < 0 ? -_ballY : 2 * maxBallY - _ballY, 0, maxBallY);

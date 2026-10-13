@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Pongheimer.Core.Game;
 
 namespace Pongheimer.Rendering;
 
@@ -23,6 +24,18 @@ public static class Palette
     public static readonly Color ExplosionMiddle = new(0xF0, 0x8A, 0x32);
     public static readonly Color ExplosionInner = RightPlayer;
     public static readonly Color ExplosionCore = new(0xFF, 0xE7, 0xBF);
+
+    // Бомби ядерного режиму: за кольором видно, чи варто в неї цілитись.
+    public static readonly Color BonusGood = new(0x7B, 0xD8, 0x8F);
+    public static readonly Color BonusBad = new(0xF0, 0x60, 0x5D);
+    public static readonly Color BonusBall = new(0xB9, 0xA3, 0xFF);
+
+    public static Color For(BonusCategory category) => category switch
+    {
+        BonusCategory.Good => BonusGood,
+        BonusCategory.Bad => BonusBad,
+        _ => BonusBall,
+    };
 
     /// <summary>Напівпрозора версія кольору (у форматі з попередньо помноженою альфою, як чекає рендер).</summary>
     public static Color WithOpacity(this Color color, float opacity) => color * Math.Clamp(opacity, 0f, 1f);

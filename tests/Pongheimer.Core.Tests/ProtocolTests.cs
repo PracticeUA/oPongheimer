@@ -107,7 +107,7 @@ public class ProtocolTests
         var frame = Protocol.Encode(new InputMessage(99999, false));
 
         Assert.True(Protocol.TryDecodeInput(frame.AsSpan(1), out var decoded));
-        Assert.Equal(GameRules.MaxPaddleY, decoded!.PaddleY);
+        Assert.Equal(GameRules.FieldHeight, decoded!.PaddleY);
     }
 
     [Fact]

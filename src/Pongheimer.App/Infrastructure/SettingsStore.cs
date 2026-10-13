@@ -15,6 +15,8 @@ public sealed class AppSettings
     public bool SoundEnabled { get; set; } = true;
 
     public BotDifficulty BotDifficulty { get; set; } = BotDifficulty.Medium;
+
+    public GameMode GameMode { get; set; } = GameMode.Classic;
 }
 
 public interface ISettingsStore

@@ -29,7 +29,7 @@ public enum HelloResult
 public static class Protocol
 {
     public const int DefaultPort = 7777;
-    public const byte Version = 3;
+    public const byte Version = 5;
 
     public const byte HelloType = 1;
     public const byte StateType = 2;
@@ -40,7 +40,8 @@ public static class Protocol
 
     private const uint Magic = 0x474E4F50; // "PONG"
     private const int HelloPayloadSize = 5;
-    private const int StatePayloadSize = 28;
+    private const int StateCoreSize = 28;
+    private const int StatePayloadSize = StateCoreSize + NuclearCodec.Size;
     private const int InputPayloadSize = 6;
 
     // Запас на те, що м'яч на мить вилітає за межі поля перед зарахуванням гола.
@@ -96,6 +97,9 @@ public static class Protocol
         payload[19] = (byte)(state.IsPaused ? 1 : 0);
         BinaryPrimitives.WriteSingleLittleEndian(payload[20..], (float)message.BallVelocityX);
         BinaryPrimitives.WriteSingleLittleEndian(payload[24..], (float)message.BallVelocityY);
+
+        // Розмір м'яча й висоти ракеток окремо не шлемо: клієнт виводить їх з ефектів за тими ж правилами.
+        NuclearCodec.Write(payload[StateCoreSize..], state.Nuclear);
         return frame;
     }
 
@@ -118,6 +122,7 @@ public static class Protocol
         double velocityX = BinaryPrimitives.ReadSingleLittleEndian(payload[20..]);
         double velocityY = BinaryPrimitives.ReadSingleLittleEndian(payload[24..]);
 
+        NuclearSnapshot? nuclear = null;
         var valid = IsWithin(velocityX, -MaxBallVelocity, MaxBallVelocity)
             && IsWithin(velocityY, -MaxBallVelocity, MaxBallVelocity)
             && IsWithin(ballX, -BallBoundsSlack, GameRules.FieldWidth + BallBoundsSlack)
@@ -127,22 +132,29 @@ public static class Protocol
             && scoreLeft <= GameRules.WinScore
             && scoreRight <= GameRules.WinScore
             && phase <= (byte)GamePhase.GameOver
-            && paused <= 1;
+            && paused <= 1
+            && NuclearCodec.TryRead(payload[StateCoreSize..], out nuclear);
         if (!valid)
         {
             return false;
         }
 
+        var leftHeight = NuclearRules.PaddleHeight(nuclear?.Left ?? default);
+        var rightHeight = NuclearRules.PaddleHeight(nuclear?.Right ?? default);
         message = new StateMessage(
             new GameState(
                 ballX,
                 ballY,
-                GameRules.ClampPaddle(leftY),
-                GameRules.ClampPaddle(rightY),
+                GameRules.ClampPaddle(leftY, leftHeight),
+                GameRules.ClampPaddle(rightY, rightHeight),
                 scoreLeft,
                 scoreRight,
                 (GamePhase)phase,
-                paused == 1),
+                paused == 1,
+                NuclearRules.BallSize(nuclear?.BallSize ?? default),
+                leftHeight,
+                rightHeight,
+                nuclear),
             velocityX,
             velocityY);
         return true;
@@ -172,7 +184,8 @@ public static class Protocol
             return false;
         }
 
-        message = new InputMessage(GameRules.ClampPaddle(paddleY), payload[4] == 1, payload[5]);
+        // Точну межу для ракетки знає лише симуляція (висота ракетки буває різною), тут — груба.
+        message = new InputMessage(Math.Clamp(paddleY, 0, GameRules.FieldHeight), payload[4] == 1, payload[5]);
         return true;
     }
 

@@ -22,8 +22,16 @@ public readonly record struct GameState(
     int ScoreLeft,
     int ScoreRight,
     GamePhase Phase,
-    bool IsPaused = false)
+    bool IsPaused = false,
+    double BallSize = GameRules.BallSize,
+    double LeftPaddleHeight = GameRules.PaddleHeight,
+    double RightPaddleHeight = GameRules.PaddleHeight,
+    NuclearSnapshot? Nuclear = null)
 {
+    public GameMode Mode => Nuclear is null ? GameMode.Classic : GameMode.Nuclear;
+
+    public double PaddleHeight(Side side) => side == Side.Left ? LeftPaddleHeight : RightPaddleHeight;
+
     public static GameState Initial { get; } = new(
         (GameRules.FieldWidth - GameRules.BallSize) / 2,
         (GameRules.FieldHeight - GameRules.BallSize) / 2,

@@ -90,6 +90,12 @@ public sealed class PongheimerGame : Game
         var connections = new TcpConnectionService(_log);
         var sessions = new GameSessionFactory(connections);
         var settings = new JsonSettingsStore(Path.Combine(_dataDirectory, "settings.json"), _log);
+        if (_options.Mode is { } requestedMode)
+        {
+            // Службовий параметр запуску; у файл налаштувань потрапить, лише якщо гравець потім щось змінить у меню.
+            settings.Current.GameMode = requestedMode;
+        }
+
         _localizer = new Localizer(Localizer.Resolve(settings.Current.Language, CultureInfo.CurrentUICulture));
         _sounds = new SynthSoundPlayer(_log) { IsEnabled = settings.Current.SoundEnabled };
 

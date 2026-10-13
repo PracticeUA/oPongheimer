@@ -14,6 +14,7 @@ The screenshots show the Ukrainian interface; the language switch is in the top 
 
 ## Features
 
+- **Two modes** — classic Pong and nuclear, with bombs and bonuses.
 - **Network play** — one player creates a game, the other joins by IP.
 - **Two players on one PC** — left player on `W`/`S`, right player on the arrow keys.
 - **Play against a bot** with three difficulty levels.
@@ -39,6 +40,31 @@ Download `oPongheimer.exe` and run it. You need 64-bit Windows 10 or 11; there i
 In "two players on one PC" mode the keys are split: `W`/`S` for the left player, `↑`/`↓` for the right one.
 
 A match is played to 7 points. The ball speeds up with every hit, and the bounce angle depends on which part of the paddle you hit it with.
+
+### Nuclear mode
+
+![Nuclear mode](docs/nuclear.png)
+
+The mode is picked in the menu with the **"Classic / Nuclear"** switch and applies to bot, local and network games (in a network game the host picks it).
+
+Bombs cross the field from the top and the bottom. Hit a bomb with the ball and it explodes, and whatever is inside goes to whoever touched the ball last. Whether that is good or bad is their problem. The bomb's colour hints at the contents:
+
+| Colour | Contents | What it does |
+|---|---|---|
+| green | Long paddle | the paddle is one and a half times taller |
+| green | Fast paddle | the paddle moves one and a half times faster |
+| green | Shield | a wall behind the paddle saves you from one goal |
+| green | Double point | your next goal counts as two |
+| red | Short paddle | the paddle is almost half as tall |
+| red | Slow paddle | the paddle moves slower |
+| red | Freeze | the paddle freezes for a second |
+| red | Inversion | up and down are swapped |
+| purple | Big / small ball | the ball becomes much bigger or smaller |
+| purple | Fast ball | the ball speeds up |
+| purple | Normal speed | the ball returns to its starting speed |
+| purple | Shockwave | the blast throws the ball in a random direction |
+
+Timed effects last 8 seconds and are shown under the player's score; a goal clears all effects.
 
 ### Network play
 
@@ -118,6 +144,7 @@ Service launch options:
 | `--perf` | shows the smoothness counter right away and writes it to the log |
 | `--autostart=bot\|duel\|host\|join` | starts a mode right away, with no clicks in the menu |
 | `--screenshot=2,5.5` | saves screenshots at the given seconds into the `screenshots` folder |
+| `--mode=classic\|nuclear` | game mode for this launch instead of the one picked in the menu |
 
 ## Tech
 

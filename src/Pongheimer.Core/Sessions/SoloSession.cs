@@ -7,8 +7,8 @@ public sealed class SoloSession : AuthoritativeSession
 {
     private readonly BotPlayer _bot;
 
-    public SoloSession(BotDifficulty difficulty, Random? random = null)
-        : base(new PongSimulation(random))
+    public SoloSession(BotDifficulty difficulty, Random? random = null, GameMode mode = GameMode.Classic)
+        : base(new PongSimulation(random, mode))
     {
         _bot = new BotPlayer(BotProfile.For(difficulty), random);
     }
