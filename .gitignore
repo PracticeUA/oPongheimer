@@ -1,0 +1,17 @@
+# Результати збірки
+bin/
+obj/
+
+# Готовий exe та архіви з ним — викладаються в Releases, а не в репозиторій
+publish/
+*.rar
+*.zip
+
+# Локальні файли Visual Studio та Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Результати тестів
+TestResults/

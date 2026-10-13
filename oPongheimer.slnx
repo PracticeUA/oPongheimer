@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pongheimer.App/Pongheimer.App.csproj" />
+    <Project Path="src/Pongheimer.Core/Pongheimer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pongheimer.Core.Tests/Pongheimer.Core.Tests.csproj" />
+  </Folder>
+</Solution>
